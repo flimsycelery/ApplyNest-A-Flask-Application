@@ -3,20 +3,16 @@
 <p>This is a web application built using Flask for managing job postings and applications.</p>
 <br>
 <h2>Features: </h2>
-<li>
-  <ul>User Authentication: Users can register, login, and logout. There are two types of users: admins and regular users.</ul>
-  <ul>Admin Dashboard: Admins can view, add, edit, and delete job postings.</ul>
-  <ul>User Dashboard: Regular users can view job postings and apply for them.</ul>
-  <ul>Job Applications: Admins can view job applications submitted by users.</ul>
-  <ul>Password Encryption: Passwords are securely hashed before storing in the database.</ul>
-</li>
+<li>User Authentication: Users can register, login, and logout. There are two types of users: admins and regular users.</ul>
+<li>Admin Dashboard: Admins can view, add, edit, and delete job postings.</li>
+<li>User Dashboard: Regular users can view job postings and apply for them.</li>
+<li>Job Applications: Admins can view job applications submitted by users.</li>
+<li>Password Encryption: Passwords are securely hashed before storing in the database.</li>
 <br>
 <h2>Prerequistes: </h2>
-<li>
-  <ul>Python (latest version)</ul>
-  <ul>Flask</ul>
-  <ul>SQLite3 (for the database)</ul>
-</li>
+<li>Python (latest version)</li>
+<li>Flask</li>
+<li>SQLite3 (for the database)</li>
 <br>
 <h2>How it looks: </h2>
 <br>
