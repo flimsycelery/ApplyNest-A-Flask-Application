@@ -1,0 +1,4 @@
+Flask
+Gunicorn
+sqlite3
+werkzeug
