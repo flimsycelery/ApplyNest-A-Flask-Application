@@ -1,4 +1,4 @@
-#ApplyNest - Job/Internship postings, applications, and administrative tasks.
+<h1>ApplyNest - Job/Internship postings, applications, and administrative tasks.</h1>
 <hr>
 <p>This is a web application built using Flask for managing job postings and applications.</p>
 <br>
