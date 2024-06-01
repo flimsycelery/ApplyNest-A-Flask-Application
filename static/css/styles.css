@@ -1,0 +1,108 @@
+body {
+    font-family: OCR A Std, monospace;
+    background-color: #e6f5ff;
+    margin: 0;
+    padding: 0;
+}
+
+nav {
+    background-color: #333;
+    color: white;
+    padding: 1em;
+    text-align: center;
+}
+
+nav a {
+    color: white;
+    margin: 0 1em;
+    text-decoration: none;
+    font-size: 17px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+.container {
+    padding: 1em;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+h1 {
+    margin-bottom: 1em;
+    font-size: 2em;
+    color: #333;
+    text-align: center;
+}
+
+.job-posting, .job-posting form {
+    border: 1px solid #ccc;
+    padding: 1em;
+    margin-bottom: 1em;
+    background-color: white;
+    border-radius: 8px;
+}
+
+.job-posting form input, .job-posting form textarea, .job-posting form button {
+    display: block;
+    width: calc(100% - 22px);
+    margin-top: 0.5em;
+    padding: 10px;
+    font-size: 1em;
+}
+
+form input[type="text"], form input[type="email"], form textarea {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 1em;
+}
+
+ul li.success {
+    color: green;
+}
+
+ul li.error {
+    color: red;
+}
+
+label {
+    font-weight: bold;
+}
+
+input[type="text"], input[type="email"], input[type="password"], textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+input[type="text"], input[type="email"], input[type="password"] {
+    padding: 10px;
+    margin: 10px 0;
+}
+
+button {
+    display: block;
+    margin-top: 1em;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 10px 15px;
+    font-size: 1em;
+    width: 100%;
+    font-family: OCR A Std, monospace;
+}
+
+button:hover {
+    background-color: #008CBA;
+}
+

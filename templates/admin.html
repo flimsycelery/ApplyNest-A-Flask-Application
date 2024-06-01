@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<h1>Admin Dashboard</h1>
+<h2>Job Postings</h2>
+<ul>
+    {% for job in job_postings %}
+    <li>
+        <strong>{{ job[1] }}</strong>: {{ job[2] }}
+        <form action="{{ url_for('edit_job', job_id=job[0]) }}" method="post">
+            <input type="text" name="title" value="{{ job[1] }}" required>
+            <textarea name="description" required>{{ job[2] }}</textarea>
+            <button type="submit">Update</button>
+        </form>
+        <a href="{{ url_for('delete_job', job_id=job[0]) }}">Delete</a>
+    </li>
+    {% endfor %}
+</ul>
+<h2>Add Job Posting</h2>
+<form action="{{ url_for('add_job') }}" method="post">
+    <input type="text" name="title" placeholder="Title" required><br>
+    <textarea name="description" placeholder="Description" required></textarea><br>
+    <button type="submit">Add</button>
+</form>
+{% endblock %}

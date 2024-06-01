@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Dashboard</title>
+    <style>
+        body {
+            font-family: OCR A Std, monospace;
+            background-color: rgb(251, 207, 40);
+            background-image: radial-gradient(circle, rgba(81, 123, 144, 1) 0%, rgba(136, 225, 236, 1) 100%), url(https://img.icons8.com/android/2x/happy.png);
+            background-size: auto;
+            background-position: left top;
+            background-repeat: repeat;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0px 4px 85px -9px rgba(30, 34, 79, 1);
+            border-radius: 15px;
+            border-top: 10px solid #28a745;
+        }
+
+        #text {
+            color: black;
+            background: #FFFFFF;
+            text-indent: 5px;
+            letter-spacing: 5px;
+            font-size: 50px;
+            text-shadow: 1px 1px 0 black, 2px -2px 0 black;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            color: #333;
+            margin: 0;
+        }
+
+        nav {
+            margin-top: 10px;
+        }
+
+        .button {
+            background-color: #04AA6D; /* Green */
+            border: none;
+            color: white;
+            padding: 10px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            font-family: OCR A Std, monospace;
+            border-radius: 8px; /* Add rounded corners */
+            transition-duration: 0.4s; /* Add a transition effect */
+        }
+
+        .button:hover {
+            background-color: #008CBA; /* Blue on hover */
+        }
+
+        main {
+            margin-top: 30px;
+        }
+
+        h2 {
+            color: #28a745;
+            font-size: 1.8em;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .job-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9f9f9;
+            margin: 15px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            transition: box-shadow 0.3s ease, background-color 0.3s ease;
+        }
+
+        .job-card:hover {
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            background-color: #f1f1f1;
+        }
+
+        .job-details {
+            max-width: 70%;
+        }
+
+        .job-details h3 {
+            margin: 0 0 10px;
+            font-size: 1.5em;
+            color: #333;
+        }
+
+        .job-details p {
+            margin: 0;
+            font-size: 1em;
+            color: #666;
+        }
+
+        .apply-form {
+            max-width: 25%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .apply-form input[type="text"],
+        .apply-form input[type="email"],
+        .apply-form input[type="file"] {
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.9em;
+            width: 100%;
+            font-family: OCR A Std, monospace;
+        }
+
+        .view-resume-btn {
+            text-decoration: none;
+            color: #007bff;
+            transition: color 0.3s ease;
+            font-size: 1em;
+        }
+
+        .view-resume-btn:hover {
+            color: #0056b3;
+        }
+
+        @media (max-width: 768px) {
+            .job-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .apply-form {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .apply-form input[type="text"],
+            .apply-form input[type="email"],
+            .apply-form input[type="file"],
+            button {
+                width: calc(100% - 22px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div id="text">Welcome!, {{ session.username }}</div>
+            <nav>
+                <a href="{{ url_for('logout') }}" class="button">Logout</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="job-postings">
+                <h2>Available Job Postings</h2>
+                {% if job_postings %}
+                <ul>
+                    {% for job in job_postings %}
+                        <li class="job-card">
+                            <div class="job-details">
+                                <h3>{{ job[1] }}</h3>
+                                <p>{{ job[2] }}</p>
+                            </div>
+                            <form class="apply-form" action="{{ url_for('apply', job_id=job[0]) }}" method="post" enctype="multipart/form-data">
+                                <input type="text" name="name" placeholder="Your Name" required>
+                                <input type="email" name="email" placeholder="Your Email" required>
+                                <input type="file" name="resume" required>
+                                <button type="submit" class="button">Apply</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <p>No jobs available right now!</p>
+                {% endif %}
+            </section>
+
+            <section class="applied-jobs">
+                <h2>Your Applications</h2>
+                {% if applied_jobs %}
+                <ul>
+                    {% for job in applied_jobs %}
+                        <li class="job-card">
+                            <div class="job-details">
+                                <h3>{{ job[0] }}</h3>
+                                <p>{{ job[1] }}</p>
+                                <a href="{{ url_for('static', filename='resumes/' ~ job[2]) }}" target="_blank" class="view-resume-btn">View Resume</a>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <p>You haven't applied for any jobs!</p>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+</body>
+</html>
