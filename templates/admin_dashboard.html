@@ -280,7 +280,7 @@
                             <tr>
                                 <td>{{ application.job_title }}</td><td>{{ application.name }}</td>
                                 <td>{{ application.email }}</td>
-                                <td><a href="{{ url_for('static', filename='resumes/' ~ application.resume) }}">View</a></td>
+                                <td><a href="{{ url_for('static', filename='resumes/' ~ application.resume) }}" target="_blank">View</a></td>
                             </tr>
                         {% endfor %}
                     </table>
