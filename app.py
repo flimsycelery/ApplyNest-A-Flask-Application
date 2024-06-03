@@ -26,10 +26,12 @@ def create_tables():
     cursor.execute('''CREATE TABLE IF NOT EXISTS job_applications (
                       id INTEGER PRIMARY KEY,
                       job_id INTEGER,
+                      user_id INTEGER,
                       name TEXT,
                       email TEXT,
                       resume TEXT,
-                      FOREIGN KEY (job_id) REFERENCES job_postings (id) ON DELETE CASCADE)''')
+                      FOREIGN KEY (job_id) REFERENCES job_postings (id) ON DELETE CASCADE,
+                      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                       id INTEGER PRIMARY KEY,
                       username TEXT UNIQUE,
@@ -37,7 +39,6 @@ def create_tables():
                       role TEXT)''')
     conn.commit()
     conn.close()
-
 
 create_tables()
 
@@ -52,7 +53,6 @@ def insert_admin_user():
                    ('admin', hashed_password, 'admin'))
     conn.commit()
     conn.close()
-
 
 insert_admin_user()
 
@@ -118,6 +118,7 @@ def register():
 
     return render_template('register.html')
 
+
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -144,29 +145,32 @@ def login():
 def user_dashboard():
     if 'user_id' not in session or session['role'] != 'user':
         return redirect(url_for('login'))
+
+    user_id = session['user_id']
     conn = connect_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM job_postings")
     job_postings = cursor.fetchall()
 
-    # Fetch the jobs the user has applied for
+    # Fetch the jobs the user has applied for based on user_id
     cursor.execute("""
         SELECT jp.title, jp.description, ja.resume
         FROM job_applications ja
         JOIN job_postings jp ON ja.job_id = jp.id
-        WHERE ja.email = (SELECT email FROM users WHERE id = ?)
-    """, (session['user_id'],))
+        WHERE ja.user_id = ?
+    """, (user_id,))
     applied_jobs = cursor.fetchall()
 
     conn.close()
     return render_template('user_dashboard.html', job_postings=job_postings, applied_jobs=applied_jobs)
 
 
-
 @app.route('/apply/<int:job_id>', methods=['POST'])
 def apply(job_id):
     if 'user_id' not in session or session['role'] != 'user':
         return redirect(url_for('login'))
+
+    user_id = session['user_id']
     name = request.form['name']
     email = request.form['email']
     resume = request.files['resume']
@@ -181,8 +185,8 @@ def apply(job_id):
 
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO job_applications (job_id, name, email, resume) VALUES (?, ?, ?, ?)",
-                   (job_id, name, email, resume_filename))  # Save only the filename, not the full path
+    cursor.execute("INSERT INTO job_applications (job_id, user_id, name, email, resume) VALUES (?, ?, ?, ?, ?)",
+                   (job_id, user_id, name, email, resume_filename))  # Save user_id with the application
     conn.commit()
     conn.close()
     flash('Application submitted successfully!', 'success')
@@ -297,3 +301,7 @@ def delete_job(job_id):
     conn.close()
     flash('Job posting deleted successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
