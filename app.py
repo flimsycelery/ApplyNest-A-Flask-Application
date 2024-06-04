@@ -4,7 +4,7 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = b'/xce/xc7/xc2p/xd1{/xeeT(?/x07tb/xbd /xd9/xfa/x06/x08/xab/x16/x93b/x8a'
 
 
 # Database initialization
