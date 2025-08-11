@@ -40,9 +40,7 @@ ApplyNest-Flask-Application/
 │
 ├── static/
 │   ├── css/
-│   │   └── styles.css
-│   └── resumes/
-│
+│      └── styles.css
 ├── templates/
 │   ├── admin.html
 │   ├── admin_dashboard.html
