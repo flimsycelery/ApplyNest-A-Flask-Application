@@ -1,6 +1,6 @@
 <h1>ApplyNest - Job/Internship postings, applications, and administrative tasks.</h1>
 <hr>
-<p>This is a web application built using Flask for managing job postings and applications.</p>
+<p>This is a Flask-based web application designed to streamline the job application process. It enables administrators to post and manage job listings, while applicants can register, log in, submit their resumes, and track application status. The system provides separate dashboards for users and admins, ensuring a smooth and organized recruitment workflow.</p>
 <br>
 <h2>Features: </h2>
 <li><b>User Authentication:</b> Users can register, login, and logout. There are two types of users: admins and regular users.</ul>
@@ -14,6 +14,49 @@
 <li>Flask</li>
 <li>SQLite3 (for the database)</li>
 <br>
+<h2>⚙️ Installation</h2>
+
+<ol>
+  <li>
+    <strong>Clone the repository</strong>
+    <pre><code>git clone https://github.com/your-username/ApplyNest-A-Flask-Application.git
+cd ApplyNest-A-Flask-Application</code></pre>
+  </li>
+  
+  <li>
+    <strong>Install dependencies</strong>
+    <pre><code>pip install -r requirements.txt</code></pre>
+  </li>
+  
+  <li>
+    <strong>Run the application</strong>
+    <pre><code>python app.py</code></pre>
+  </li>
+</ol>
+<br>
+<h2>📁 Project Structure</h2>
+<pre>
+ApplyNest-Flask-Application/
+│
+├── static/
+│   ├── css/
+│   │   └── styles.css
+│   └── resumes/
+│
+├── templates/
+│   ├── admin.html
+│   ├── admin_dashboard.html
+│   ├── index.html
+│   ├── layout.html
+│   ├── login.html
+│   ├── register.html
+│   └── user_dashboard.html
+│
+├── README.md
+├── app.py
+├── job_applications.db
+└── requirements.txt
+</pre>
 <h2>How it looks: </h2>
 <br>
 
