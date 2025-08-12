@@ -114,7 +114,7 @@ To ensure a smooth and fair contribution process:
 
 ## 🎯 Points & Difficulty Levels
 
-Your contributions earn points that count toward GSSoC'25 and your NeoNest Leaderboard status!
+Your contributions earn points that count toward GSSoC'25 Leaderboard status!
 
 | Difficulty | Points |
 | :--------- | :----- |
