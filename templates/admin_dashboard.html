@@ -217,6 +217,13 @@
     </style>
 </head>
 <body>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                        <div class="alert alert-info">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     <div class="container">
         <header>
             <div id="text">Welcome!, {{ session.username }}</div>
@@ -275,12 +282,27 @@
                             <th>Applicant Name</th>
                             <th>Email</th>
                             <th>Resume</th>
+                            <th>Status</th>
+                            <th>Update</th>
                         </tr>
                         {% for application in job_applications %}
                             <tr>
-                                <td>{{ application.job_title }}</td><td>{{ application.name }}</td>
+                                <td>{{ application.job_title }}</td>
+                                <td>{{ application.name }}</td>
                                 <td>{{ application.email }}</td>
                                 <td><a href="{{ url_for('static', filename='resumes/' ~ application.resume) }}" target="_blank">View</a></td>
+                                <td>
+                                    <form action="{{url_for('update_status', application_id  = application.id)}}" method="post">
+                                        <select name="status">
+                                            <option value="Pending" {% if application.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                            <option value="Accepted" {% if application.status == 'Accepted' %}selected{% endif %}>Accepted</option>
+                                            <option value="Rejected" {% if application.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <button type="submit" class="button">Update</button>
+                                    </form>
+                                </td>
                             </tr>
                         {% endfor %}
                     </table>
