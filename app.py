@@ -155,11 +155,11 @@ def user_dashboard():
 
     # Fetch the jobs the user has applied for based on user_id
     cursor.execute("""
-        SELECT jp.title, jp.description, ja.resume
+        SELECT jp.title, jp.description, ja.resume, ja.status
         FROM job_applications ja
         JOIN job_postings jp ON ja.job_id = jp.id
         WHERE ja.user_id = ?
-    """, (user_id,))
+    """, (session['user_id'],))
     applied_jobs = cursor.fetchall()
 
     conn.close()
@@ -186,8 +186,8 @@ def apply(job_id):
 
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO job_applications (job_id, user_id, name, email, resume) VALUES (?, ?, ?, ?, ?)",
-                   (job_id, user_id, name, email, resume_filename))  # Save user_id with the application
+    cursor.execute("INSERT INTO job_applications (job_id, user_id, name, email, resume, status) VALUES (?, ?, ?, ?, ?, ?)",
+                   (job_id, user_id, name, email, resume_filename, 'Pending'))  # Save user_id with the application
     conn.commit()
     conn.close()
     flash('Application submitted successfully!', 'success')
@@ -217,7 +217,7 @@ def view_applications():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT ja.id, ja.name, ja.email, ja.resume, jp.title 
+        SELECT ja.id, ja.name, ja.email, ja.resume, jp.title ,ja.status
         FROM job_applications ja
         JOIN job_postings jp ON ja.job_id = jp.id
         WHERE jp.admin_id = ?
@@ -231,10 +231,27 @@ def view_applications():
         'name': row[1],
         'email': row[2],
         'resume': row[3],
-        'job_title': row[4]
+        'job_title': row[4],
+        'status':row[5]
     } for row in job_applications]
 
     return render_template('admin_dashboard.html', job_applications=applications)
+
+@app.route('/update_status/<int:application_id>',methods =['POST'])
+def update_status(application_id):
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('login'))
+    
+    new_status = request.form.get('status')
+    conn= connect_db()
+    cursor =conn.cursor()
+    cursor.execute("UPDATE job_applications SET status=? WHERE id=?", (new_status,application_id))
+    conn.commit()
+    conn.close()
+
+    flash(f'Application status updated to "{new_status}" successfully')
+    return redirect(url_for('view_applications'))
+
 
 
 @app.route('/add_job', methods=['POST'])
