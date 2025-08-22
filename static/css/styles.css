@@ -106,3 +106,11 @@ button:hover {
     background-color: #008CBA;
 }
 
+/* Minimal Flask-WTF styling that doesn't conflict with existing design */
+.error {
+    color: #dc3545;
+    font-size: 0.9em;
+    margin-top: 5px;
+    display: block;
+}
+
