@@ -65,3 +65,7 @@ ApplyNest-Flask-Application/
 ![image](https://github.com/banasmita24/ApplyNest/assets/155791058/7f9502aa-8d62-495b-bbb1-e34e90ee1468)
 
 ![image](https://github.com/banasmita24/ApplyNest/assets/155791058/6a8cb7ad-632b-4995-9dc4-bc206da37897)
+
+<br>
+<h2>📝 License</h2>
+<p>This project is licensed under the <a href="LICENSE">MIT License</a>.</p>
