@@ -241,9 +241,19 @@
                                 <p>{{ job[2] }}</p>
                             </div>
                             <form class="apply-form" action="{{ url_for('apply', job_id=job[0]) }}" method="post" enctype="multipart/form-data">
-                                <input type="text" name="name" placeholder="Your Name" required>
-                                <input type="email" name="email" placeholder="Your Email" required>
-                                <input type="file" name="resume" accept=".pdf" required>
+                                {{ form.hidden_tag() }}
+                                {{ form.name(placeholder="Your Name", required=true) }}
+                                {% if form.name.errors %}
+                                    <span class="error">{{ form.name.errors[0] }}</span>
+                                {% endif %}
+                                {{ form.email(placeholder="Your Email", required=true) }}
+                                {% if form.email.errors %}
+                                    <span class="error">{{ form.email.errors[0] }}</span>
+                                {% endif %}
+                                {{ form.resume(required=true) }}
+                                {% if form.resume.errors %}
+                                    <span class="error">{{ form.resume.errors[0] }}</span>
+                                {% endif %}
                                 <button type="submit" class="button">Apply</button>
                             </form>
                         </li>
