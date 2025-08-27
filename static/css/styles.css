@@ -37,7 +37,7 @@ body {
 
 /* Right side buttons */
 .nav-buttons a {
-    background-color: #002e4d;
+    background-color: #56b3b8;
     color: #fff !important;
     padding: 6px 14px;   /* Smaller button size */
     border-radius: 5px;
@@ -51,7 +51,7 @@ body {
 }
 
 .nav-buttons a:hover {
-    background-color: #004d80;
+    background-color: #56b3b8;
 }
 
 /* Container */
