@@ -1,6 +1,6 @@
 /* General Layout */
 body {
-    background: white;
+    background: #e3fcf2;
     margin: 0;
     padding: 0;
     color: #333;
@@ -9,46 +9,50 @@ body {
 }
 
 /* Navbar */
-nav {
-    background: #da3b70;   
+.navbar-custom {
+    background:#064447 ;
     color: white;
-    padding: 1em 2em;
-    display: flex;
-    justify-content: space-between; 
-    align-items: center;
+    padding: 0.6em 2em;   /* Reduced height */
     position: sticky;
     top: 0;
     z-index: 1000;
 }
 
-/* Left side (Apply Nest) */
-nav .brand {
-    font-size: 32px;
+.navbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Left side (ApplyNest) */
+.navbar-brand {
+    font-size: 28px;   /* Slightly smaller */
     font-weight: bold;
     color: white;
     text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* space between icon and text */
 }
 
-/* Right side links */
-nav .nav-links a {
+/* Right side buttons */
+.nav-buttons a {
     background-color: #002e4d;
     color: #fff !important;
-    padding: 8px 18px;
+    padding: 6px 14px;   /* Smaller button size */
     border-radius: 5px;
     margin-left: 10px;
     text-decoration: none;
     transition: 0.3s;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }
 
-a{
-    text-decoration: none;
+.nav-buttons a:hover {
+    background-color: #004d80;
 }
-
-nav .nav-links a:hover {
-    color: #2c3e50;  
-}
-
 
 /* Container */
 .container {
@@ -71,7 +75,7 @@ h1 {
     border: 1px solid #ddd;
     padding: 1.8em;
     margin-bottom: 1.5em;
-    background: white;
+    background: #e3fcf2;
     border-radius: 12px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     font-size: 1.1em; /* Slightly bigger inside forms */
@@ -150,4 +154,9 @@ label {
     margin-top: 12px;
     display: inline-block;
     font-size: 1.05em; /* Slightly bigger */
+}
+
+/* Reset anchor underline */
+a {
+    text-decoration: none;
 }
