@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ApplyNest</title>
+<!-- <<<<<<< improve-landing-page -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -35,6 +36,26 @@
             width: 100%;
             height: 100%;
             object-fit: cover;  /* makes image fill the shape */
+        }
+      
+        .about {
+            text-align: center;
+            padding: 60px 20px;
+            box-shadow: 0 4px 6px -2px rgba(0,0,0,0.3);
+
+        }
+
+        .about h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .about p {
+            max-width: 700px;
+            margin: 1rem auto; 
+            font-size: 1.15rem;
+            line-height: 1.8; 
+            color: #333;
         }
 
         .navbar {
@@ -80,6 +101,7 @@
 </head>
 <body>
 
+<!-- improve-landing-page -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold" href="#">ApplyNest</a>
@@ -121,6 +143,21 @@
   </div>
 </section>
 
+<!-- about section   -->
+<section class="about">
+    <h2>About Us</h2>
+    <p>
+        ApplyNest is a platform designed to simplify the process of job and internship applications. 
+        Whether you’re a student looking for opportunities, a job seeker aiming for your dream role, 
+        or an employer seeking the best talent, ApplyNest provides a seamless experience for all.
+    </p>
+    <p>
+        Our mission is to bridge the gap between talent and opportunity by providing an intuitive, 
+        efficient, and user-friendly platform that empowers users to grow their careers.
+    </p>
+</section>
+
+  
 <!-- Features section -->
 <section id="features" class="features py-5">
     <div class="container">
@@ -175,14 +212,6 @@
     </div>
 </section>
 
-<section id="why" class="why-section text-center">
-    <div class="container">
-        <h2 class="fw-bold">Why Choose ApplyNest?</h2>
-        <p class="mt-3">Built for startups, colleges, and small companies that want hiring to be simple. 
-        ApplyNest keeps applicants informed and recruiters in control, creating a smoother hiring journey for everyone.</p>
-    </div>
-</section>
-
 <!-- footer -->
 <footer>
     <div class="container text-center">
@@ -192,5 +221,6 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
