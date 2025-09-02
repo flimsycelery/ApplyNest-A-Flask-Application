@@ -284,6 +284,25 @@
                     <p>You haven't applied for any jobs!</p>
                 {% endif %}
             </section>
+
+            <section class="recommended-jobs">
+                <h2>Recommended Jobs Based on Your Resume</h2>
+                {% if matched_jobs %}
+                    <ul>
+                        {% for job in matched_jobs %}
+                            <li class="job-card">
+                                <div class="job-details">
+                                    <h3>{{ job.title }}</h3>
+                                    <p>Match Score: {{ job.match_score }}%</p>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No matching jobs found.</p>
+                {% endif %}
+            </section>
+
         </main>
     </div>
 </body>

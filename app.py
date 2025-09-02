@@ -2,10 +2,12 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_wtf.csrf import CSRFProtect
 import sqlite3
 import os
+from docx import Document
+import fitz 
 from werkzeug.security import generate_password_hash, check_password_hash
 from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm
 from werkzeug.utils import secure_filename
-from nlp_utils import extract_keywords
+from nlp_utils import match_resume_to_jobs, update_schema_with_keywords
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -14,6 +16,7 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(24)
 UPLOAD_FOLDER = 'static/resumes'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+update_schema_with_keywords()
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -176,27 +179,55 @@ def login():
 
 @app.route('/user_dashboard')
 def user_dashboard():
-    if 'user_id' not in session or session['role'] != 'user':
+    username = session.get('username')
+    if not username:
         return redirect(url_for('login'))
 
-    user_id = session['user_id']
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM job_postings")
-    job_postings = cursor.fetchall()
 
-    # Fetch the jobs the user has applied for based on user_id
-    cursor.execute("""
-        SELECT jp.title, jp.description, ja.resume, ja.status
-        FROM job_applications ja
-        JOIN job_postings jp ON ja.job_id = jp.id
-        WHERE ja.user_id = ?
-    """, (session['user_id'],))
+    cursor.execute("SELECT resume_path FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+    resume_text = ""
+
+    if row and row[0]:
+        resume_path = row[0]
+        try:
+            if resume_path.endswith('.pdf') and os.path.exists(resume_path):
+                doc = fitz.open(resume_path)
+                for page in doc:
+                    resume_text += page.get_text()
+            elif resume_path.endswith('.docx') and os.path.exists(resume_path):
+                doc = Document(resume_path)
+                for para in doc.paragraphs:
+                    resume_text += para.text + "\n"
+        except Exception as e:
+            print(f"Error reading resume: {e}")
+
+    cursor.execute('''SELECT jp.title, jp.description, ja.resume, ja.status
+                      FROM job_applications ja
+                      JOIN job_postings jp ON ja.job_id = jp.id
+                      WHERE ja.user_id = (SELECT id FROM users WHERE username = ?)''', (username,))
     applied_jobs = cursor.fetchall()
 
+    cursor.execute("SELECT * FROM job_postings")
+    job_postings = cursor.fetchall()
     conn.close()
-    form = JobApplicationForm()
-    return render_template('user_dashboard.html', job_postings=job_postings, applied_jobs=applied_jobs, form=form)
+
+    matched_jobs = match_resume_to_jobs(resume_text) if resume_text else []
+    form = JobApplicationForm() 
+    return render_template('user_dashboard.html',
+                          job_postings=job_postings,
+                          applied_jobs=applied_jobs,
+                          matched_jobs=matched_jobs,
+                          form=form)  
+
+
+@app.route('/keywords/<int:job_id>')
+def store_keywords(job_id):
+    from nlp_utils import store_keywords_for_job
+    store_keywords_for_job(job_id)
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/<int:job_id>', methods=['POST'])
@@ -249,20 +280,6 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', job_postings=job_postings, form=form, edit_form=edit_form, status_form=status_form)
 
 
-@app.route('/keywords/<int:job_id>')
-def get_keywords(job_id):
-    conn = sqlite3.connect('job_applications.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT description FROM job_postings WHERE id = ?", (job_id,))
-    row = cursor.fetchone()
-    conn.close()
-
-    if row:
-        description = row[0]
-        keywords = extract_keywords(description)
-        return jsonify({"job_id": job_id, "keywords": keywords})
-    else:
-        return jsonify({"error": "Job not found"}), 404
 
 
 @app.route('/view_applications')

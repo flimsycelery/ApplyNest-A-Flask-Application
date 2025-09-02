@@ -57,31 +57,11 @@
                         <a href="{{ url_for('delete_job', job_id=job[0]) }}" class="button">Delete</a>
                     </td>
                 </tr>
-                <tr>
-                    <td colspan="3">
-                        <div>
-                            <h3>Extracted Keywords</h3>
-                            <ul id="keywords-list-{{ job[0] }}"></ul>
-                        </div>
-
-                        <script>
-                        fetch('/keywords/{{ job[0] }}')
-                            .then(response => response.json())
-                            .then(data => {
-                            const list = document.getElementById('keywords-list-{{ job[0] }}');
-                            data.keywords.forEach(kw => {
-                                const li = document.createElement('li');
-                                li.textContent = kw;
-                                list.appendChild(li);
-                            });
-                            });
-                        </script>
-                    </td>
-                </tr>
                 {% endfor %}
             </table>
             {% endif %}
         </section>
+
 
         <!-- Job Applications -->
         <section class="job-posting">
