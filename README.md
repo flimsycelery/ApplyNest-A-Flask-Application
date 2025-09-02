@@ -333,7 +333,7 @@ This project is licensed under the MIT License - see the [`License`](https://git
 <table>
 <tr>
 <td align="center">
-<a href="https://github.com/banasmita24"><img src="https://avatars.githubusercontent.com/u/155791058?v=4" height="140px" width="140px" alt="Rhythm"></a><br><sub><b>Rhythm</b><br><a href="https://www.linkedin.com/in/banasmita-jena-z2405/"><img src="https://github-production-user-asset-6210df.s3.amazonaws.com/73993775/278833250-adb040ea-e3ef-446e-bcd4-3e8d7d4c0176.png" width="45px" height="45px"></a>
+<a href="https://github.com/banasmita24"><img src="https://avatars.githubusercontent.com/u/155791058?v=4" height="140px" width="140px" alt="Banasmita Jena"></a><br><sub><b>Banasmita Jena</b><br><a href="https://www.linkedin.com/in/banasmita-jena-z2405/"><img src="https://github-production-user-asset-6210df.s3.amazonaws.com/73993775/278833250-adb040ea-e3ef-446e-bcd4-3e8d7d4c0176.png" width="45px" height="45px"></a>
 </sub>
 </td>
 </tr>
