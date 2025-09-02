@@ -240,18 +240,18 @@
                                 <p>{{ job[2] }}</p>
                             </div>
                             <form class="apply-form" action="{{ url_for('admin', job_id=job[0]) }}" method="post" enctype="multipart/form-data">
-                                {{ form.hidden_tag() }}
-                                {{ form.name(placeholder="Your Name", required=true) }}
-                                {% if form.name.errors %}
-                                    <span class="error">{{ form.name.errors[0] }}</span>
+                                {{ application_form.hidden_tag() }}
+                                {{ application_form.name(placeholder="Your Name", required=true) }}
+                                {% if application_form.name.errors %}
+                                    <span class="error">{{ application_form.name.errors[0] }}</span>
                                 {% endif %}
-                                {{ form.email(placeholder="Your Email", required=true) }}
-                                {% if form.email.errors %}
-                                    <span class="error">{{ form.email.errors[0] }}</span>
+                                {{ application_form.email(placeholder="Your Email", required=true) }}
+                                {% if application_form.email.errors %}
+                                    <span class="error">{{ application_form.email.errors[0] }}</span>
                                 {% endif %}
-                                {{ form.resume(required=true) }}
-                                {% if form.resume.errors %}
-                                    <span class="error">{{ form.resume.errors[0] }}</span>
+                                {{ application_form.resume(required=true) }}
+                                {% if application_form.resume.errors %}
+                                    <span class="error">{{ application_form.resume.errors[0] }}</span>
                                 {% endif %}
                                 <button type="submit" class="button">Apply</button>
                             </form>
@@ -284,6 +284,19 @@
                     <p>You haven't applied for any jobs!</p>
                 {% endif %}
             </section>
+
+            <section class="resume-management">
+                <h2>{{ 'Update Your Resume' if resume_uploaded else 'Add Your Resume' }}</h2>
+                <form method="post" action="{{ url_for('upload_resume') }}" enctype="multipart/form-data" class="apply-form">
+                    {{ resume_form.hidden_tag() }}
+                    {{ resume_form.resume_file(required=true) }}
+                    {% if resume_form.resume_file.errors %}
+                        <span class="error">{{ resume_form.resume_file.errors[0] }}</span>
+                    {% endif %}
+                    {{ resume_form.submit(class="button") }}
+                </form>
+            </section>
+
 
             <section class="recommended-jobs">
                 <h2>Recommended Jobs Based on Your Resume</h2>

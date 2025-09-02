@@ -5,7 +5,7 @@ import os
 from docx import Document
 import fitz 
 from werkzeug.security import generate_password_hash, check_password_hash
-from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm
+from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm, ResumeUploadForm
 from werkzeug.utils import secure_filename
 from nlp_utils import match_resume_to_jobs, update_schema_with_keywords
 
@@ -56,7 +56,7 @@ def create_tables():
     cursor.execute("PRAGMA table_info(users)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'resume_path' not in columns:
-        cursor.execute("ALTER TABLE users ADD COLUMN resume_path TEXT")
+        cursor.execute("ALTER TABLE users ALTER COLUMN resume_path SET DEFAULT NULL;")
     
     conn.commit()
     conn.close()
@@ -121,21 +121,12 @@ def register():
         password = form.password.data
         role = form.role.data  # 'user' or 'admin' from radio button
 
-        resume_file = form.resume.data
-        resume_path = None
-
-        if resume_file:
-            filename = secure_filename(resume_file.filename)
-            resume_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-            resume_file.save(resume_path)
-
         conn = connect_db()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO users (username, password, role, resume_path)
-            VALUES (?, ?, ?, ?)
-        """, (username, generate_password_hash(password), role, resume_path))
+            INSERT INTO users (username, password, role)
+            VALUES (?, ?, ?)
+        """, (username, generate_password_hash(password), role))
         conn.commit()
         conn.close()
 
@@ -189,8 +180,9 @@ def user_dashboard():
     cursor.execute("SELECT resume_path FROM users WHERE username = ?", (username,))
     row = cursor.fetchone()
     resume_text = ""
+    resume_uploaded = bool(row and row[0])
 
-    if row and row[0]:
+    if resume_uploaded:
         resume_path = row[0]
         try:
             if resume_path.endswith('.pdf') and os.path.exists(resume_path):
@@ -212,15 +204,47 @@ def user_dashboard():
 
     cursor.execute("SELECT * FROM job_postings")
     job_postings = cursor.fetchall()
-    conn.close()
+
+    conn.close()  
 
     matched_jobs = match_resume_to_jobs(resume_text) if resume_text else []
-    form = JobApplicationForm() 
+    resume_form = ResumeUploadForm()
+    application_form = JobApplicationForm()
+
     return render_template('user_dashboard.html',
-                          job_postings=job_postings,
-                          applied_jobs=applied_jobs,
-                          matched_jobs=matched_jobs,
-                          form=form)  
+                           job_postings=job_postings,
+                           applied_jobs=applied_jobs,
+                           matched_jobs=matched_jobs,
+                           resume_uploaded=resume_uploaded,
+                           resume_form=resume_form,
+                           application_form=application_form)
+
+
+
+
+@app.route('/upload_resume', methods=['POST'])
+def upload_resume():
+    form = ResumeUploadForm()
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    if form.validate_on_submit():
+        resume_file = form.resume_file.data
+        filename = secure_filename(resume_file.filename)
+        resume_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        resume_file.save(resume_path)
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET resume_path = ? WHERE username = ?", (resume_path, username))
+        conn.commit()
+        conn.close()
+
+        flash('Resume uploaded successfully!', 'success')
+
+    return redirect(url_for('user_dashboard'))
 
 
 @app.route('/keywords/<int:job_id>')

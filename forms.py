@@ -16,7 +16,6 @@ class RegisterForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     role = RadioField("Role", choices=[("user", "User"), ("admin", "Admin")], validators=[DataRequired()])
-    resume = FileField('Upload Resume', validators=[FileAllowed(['pdf', 'docx'], 'PDF or DOCX only')])
     submit = SubmitField('Register')
 
     def validate_username(self, username):
@@ -27,6 +26,13 @@ class RegisterForm(FlaskForm):
         conn.close()
         if existing_user:
             raise ValidationError('Username already exists. Please choose a different one.')
+
+class ResumeUploadForm(FlaskForm):
+    resume_file = FileField('Upload Resume', validators=[
+        FileRequired(),
+        FileAllowed(['pdf', 'docx'], 'Only PDF or DOCX files are allowed!')
+    ])
+    submit = SubmitField('Upload')
 
 
 class JobApplicationForm(FlaskForm):

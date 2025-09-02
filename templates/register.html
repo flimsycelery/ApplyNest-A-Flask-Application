@@ -51,15 +51,6 @@
                 {% endfor %}
             </div>
 
-            <!-- Resume Upload -->
-            <div class="mb-3">
-                <label for="resume" class="form-label">Upload Resume (PDF/DOCX)</label>
-                {{ form.resume(class="form-control", id="resume", required=true) }}
-                {% if form.resume.errors %}
-                    <div class="text-danger small">{{ form.resume.errors[0] }}</div>
-                {% endif %}
-            </div>
-
             <!-- Submit -->
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary btn-lg">Register</button>
