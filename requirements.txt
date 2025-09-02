@@ -3,3 +3,4 @@ Flask-WTF
 WTForms
 email_validator
 Gunicorn
+spacy

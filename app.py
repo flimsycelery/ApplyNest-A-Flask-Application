@@ -1,15 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_wtf.csrf import CSRFProtect
 import sqlite3
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm
+from werkzeug.utils import secure_filename
+from nlp_utils import extract_keywords
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('sqlite:///db.sqlite3')
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(24)
+UPLOAD_FOLDER = 'static/resumes'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -45,6 +49,12 @@ def create_tables():
                       username TEXT UNIQUE,
                       password TEXT,
                       role TEXT)''')
+    
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'resume_path' not in columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN resume_path TEXT")
+    
     conn.commit()
     conn.close()
 
@@ -108,10 +118,21 @@ def register():
         password = form.password.data
         role = form.role.data  # 'user' or 'admin' from radio button
 
+        resume_file = form.resume.data
+        resume_path = None
+
+        if resume_file:
+            filename = secure_filename(resume_file.filename)
+            resume_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            resume_file.save(resume_path)
+
         conn = connect_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                       (username, generate_password_hash(password), role))
+        cursor.execute("""
+            INSERT INTO users (username, password, role, resume_path)
+            VALUES (?, ?, ?, ?)
+        """, (username, generate_password_hash(password), role, resume_path))
         conn.commit()
         conn.close()
 
@@ -119,6 +140,7 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html', form=form)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -177,8 +199,8 @@ def user_dashboard():
     return render_template('user_dashboard.html', job_postings=job_postings, applied_jobs=applied_jobs, form=form)
 
 
-@app.route('/apply/<int:job_id>', methods=['POST'])
-def apply(job_id):
+@app.route('/admin/<int:job_id>', methods=['POST'])
+def admin(job_id):
     if 'user_id' not in session or session['role'] != 'user':
         return redirect(url_for('login'))
 
@@ -225,6 +247,22 @@ def admin_dashboard():
     edit_form = EditJobForm()
     status_form = ApplicationStatusForm()
     return render_template('admin_dashboard.html', job_postings=job_postings, form=form, edit_form=edit_form, status_form=status_form)
+
+
+@app.route('/keywords/<int:job_id>')
+def get_keywords(job_id):
+    conn = sqlite3.connect('job_applications.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT description FROM job_postings WHERE id = ?", (job_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        description = row[0]
+        keywords = extract_keywords(description)
+        return jsonify({"job_id": job_id, "keywords": keywords})
+    else:
+        return jsonify({"error": "Job not found"}), 404
 
 
 @app.route('/view_applications')

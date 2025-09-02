@@ -239,7 +239,7 @@
                                 <h3>{{ job[1] }}</h3>
                                 <p>{{ job[2] }}</p>
                             </div>
-                            <form class="apply-form" action="{{ url_for('apply', job_id=job[0]) }}" method="post" enctype="multipart/form-data">
+                            <form class="apply-form" action="{{ url_for('admin', job_id=job[0]) }}" method="post" enctype="multipart/form-data">
                                 {{ form.hidden_tag() }}
                                 {{ form.name(placeholder="Your Name", required=true) }}
                                 {% if form.name.errors %}

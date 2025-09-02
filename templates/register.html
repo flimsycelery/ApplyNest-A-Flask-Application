@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container mt-5" style="max-width: 600px;">
-    <form action="{{ url_for('register') }}" method="post" class="p-4 shadow-sm rounded bg-white">
+    <form action="{{ url_for('register') }}" method="post" class="p-4 shadow-sm rounded bg-white" enctype="multipart/form-data">
         {{ form.hidden_tag() }}
         <fieldset>
             <legend>
@@ -51,6 +51,14 @@
                 {% endfor %}
             </div>
 
+            <!-- Resume Upload -->
+            <div class="mb-3">
+                <label for="resume" class="form-label">Upload Resume (PDF/DOCX)</label>
+                {{ form.resume(class="form-control", id="resume", required=true) }}
+                {% if form.resume.errors %}
+                    <div class="text-danger small">{{ form.resume.errors[0] }}</div>
+                {% endif %}
+            </div>
 
             <!-- Submit -->
             <div class="d-grid">
