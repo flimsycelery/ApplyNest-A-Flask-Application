@@ -49,7 +49,7 @@
                     <td>{{ job[1] }}</td>
                     <td>{{ job[2] }}</td>
                     <td>
-                        <form action="{{ url_for('admin', job_id=job[0]) }}" method="post" style="display:inline-block;">
+                        <form action="{{ url_for('admin_login') }}" method="post" style="display:inline-block;">
                             {{ edit_form.hidden_tag() }}
                             <button type="submit" class="button">Update</button>
                         </form>
