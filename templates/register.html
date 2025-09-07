@@ -21,22 +21,6 @@
                                 <div class="text-danger small mt-1">{{ form.username.errors[0] }}</div>
                             {% endif %}
                         </div>
-<div class="container mt-5" style="max-width: 600px;">
-    <form action="{{ url_for('register') }}" method="post" class="p-4 shadow-sm rounded bg-white" enctype="multipart/form-data">
-        {{ form.hidden_tag() }}
-        <fieldset>
-            <legend>
-                <h2 class="text-center mb-4">Register</h2>
-            </legend>
-
-            <!-- Username -->
-            <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                {{ form.username(class="form-control form-control-lg", id="username", placeholder="Enter username", required=true) }}
-                {% if form.username.errors %}
-                    <div class="text-danger small">{{ form.username.errors[0] }}</div>
-                {% endif %}
-            </div>
 
                         <!-- Password -->
                         <div class="mb-3">
@@ -56,19 +40,6 @@
                             {% endif %}
                         </div>
 
-            <!-- Role Selection -->
-            <div class="mb-3">
-            <label class="form-label">Role</label><br>
-                {% for value, label in form.role.choices %}
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" id="role_{{ value }}" name="{{ form.role.name }}" value="{{ value }}" {% if form.role.data == value %}checked{% endif %}>
-                        <label class="form-check-label" for="role_{{ value }}">{{ label }}</label>
-                    </div>
-                {% endfor %}
-                {% for err in form.role.errors %}
-                    <div class="text-danger small">{{ err }}</div>
-                {% endfor %}
-            </div>
                         <!-- Role Selection -->
                         <div class="mb-4">
                             <label class="form-label">Role</label><br>
