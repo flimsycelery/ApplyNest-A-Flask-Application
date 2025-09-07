@@ -3,3 +3,5 @@ Flask-WTF
 WTForms
 email_validator
 Gunicorn
+keybert
+sentence-transformers

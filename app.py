@@ -1,15 +1,22 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_wtf.csrf import CSRFProtect
 import sqlite3
 import os
+from docx import Document
+import fitz 
 from werkzeug.security import generate_password_hash, check_password_hash
-from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm
+from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm, ResumeUploadForm
+from werkzeug.utils import secure_filename
+from nlp_utils import match_resume_to_jobs, update_schema_with_keywords
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('sqlite:///db.sqlite3')
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(24)
+UPLOAD_FOLDER = 'static/resumes'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+update_schema_with_keywords()
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -45,6 +52,12 @@ def create_tables():
                       username TEXT UNIQUE,
                       password TEXT,
                       role TEXT)''')
+    
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'resume_path' not in columns:
+        cursor.execute("ALTER TABLE users ALTER COLUMN resume_path SET DEFAULT NULL;")
+    
     conn.commit()
     conn.close()
 
@@ -110,8 +123,10 @@ def register():
 
         conn = connect_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                       (username, generate_password_hash(password), role))
+        cursor.execute("""
+            INSERT INTO users (username, password, role)
+            VALUES (?, ?, ?)
+        """, (username, generate_password_hash(password), role))
         conn.commit()
         conn.close()
 
@@ -119,6 +134,7 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html', form=form)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -154,31 +170,92 @@ def login():
 
 @app.route('/user_dashboard')
 def user_dashboard():
-    if 'user_id' not in session or session['role'] != 'user':
+    username = session.get('username')
+    if not username:
         return redirect(url_for('login'))
 
-    user_id = session['user_id']
     conn = connect_db()
     cursor = conn.cursor()
+
+    cursor.execute("SELECT resume_path FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+    resume_text = ""
+    resume_uploaded = bool(row and row[0])
+
+    if resume_uploaded:
+        resume_path = row[0]
+        try:
+            if resume_path.endswith('.pdf') and os.path.exists(resume_path):
+                doc = fitz.open(resume_path)
+                for page in doc:
+                    resume_text += page.get_text()
+            elif resume_path.endswith('.docx') and os.path.exists(resume_path):
+                doc = Document(resume_path)
+                for para in doc.paragraphs:
+                    resume_text += para.text + "\n"
+        except Exception as e:
+            print(f"Error reading resume: {e}")
+
+    cursor.execute('''SELECT jp.title, jp.description, ja.resume, ja.status
+                      FROM job_applications ja
+                      JOIN job_postings jp ON ja.job_id = jp.id
+                      WHERE ja.user_id = (SELECT id FROM users WHERE username = ?)''', (username,))
+    applied_jobs = cursor.fetchall()
+
     cursor.execute("SELECT * FROM job_postings")
     job_postings = cursor.fetchall()
 
-    # Fetch the jobs the user has applied for based on user_id
-    cursor.execute("""
-        SELECT jp.title, jp.description, ja.resume, ja.status
-        FROM job_applications ja
-        JOIN job_postings jp ON ja.job_id = jp.id
-        WHERE ja.user_id = ?
-    """, (session['user_id'],))
-    applied_jobs = cursor.fetchall()
+    conn.close()  
 
-    conn.close()
-    form = JobApplicationForm()
-    return render_template('user_dashboard.html', job_postings=job_postings, applied_jobs=applied_jobs, form=form)
+    matched_jobs = match_resume_to_jobs(resume_text) if resume_text else []
+    resume_form = ResumeUploadForm()
+    application_form = JobApplicationForm()
+
+    return render_template('user_dashboard.html',
+                           job_postings=job_postings,
+                           applied_jobs=applied_jobs,
+                           matched_jobs=matched_jobs,
+                           resume_uploaded=resume_uploaded,
+                           resume_form=resume_form,
+                           application_form=application_form)
 
 
-@app.route('/apply/<int:job_id>', methods=['POST'])
-def apply(job_id):
+
+
+@app.route('/upload_resume', methods=['POST'])
+def upload_resume():
+    form = ResumeUploadForm()
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    if form.validate_on_submit():
+        resume_file = form.resume_file.data
+        filename = secure_filename(resume_file.filename)
+        resume_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        resume_file.save(resume_path)
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET resume_path = ? WHERE username = ?", (resume_path, username))
+        conn.commit()
+        conn.close()
+
+        flash('Resume uploaded successfully!', 'success')
+
+    return redirect(url_for('user_dashboard'))
+
+
+@app.route('/keywords/<int:job_id>')
+def store_keywords(job_id):
+    from nlp_utils import store_keywords_for_job
+    store_keywords_for_job(job_id)
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/<int:job_id>', methods=['POST'])
+def admin(job_id):
     if 'user_id' not in session or session['role'] != 'user':
         return redirect(url_for('login'))
 
@@ -225,6 +302,8 @@ def admin_dashboard():
     edit_form = EditJobForm()
     status_form = ApplicationStatusForm()
     return render_template('admin_dashboard.html', job_postings=job_postings, form=form, edit_form=edit_form, status_form=status_form)
+
+
 
 
 @app.route('/view_applications')
