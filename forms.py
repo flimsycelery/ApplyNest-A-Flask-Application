@@ -13,6 +13,7 @@ class LoginForm(FlaskForm):
 
 class RegisterForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=20)])
+    full_name = StringField('Full Name', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     role = RadioField("Role", choices=[("user", "User"), ("admin", "Admin")], validators=[DataRequired()])
@@ -36,7 +37,6 @@ class ResumeUploadForm(FlaskForm):
 
 
 class JobApplicationForm(FlaskForm):
-    name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=50)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     resume = FileField('Resume', validators=[
         FileRequired(),

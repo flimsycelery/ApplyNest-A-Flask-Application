@@ -222,7 +222,7 @@
         {% endwith %}
 
         <header>
-            <div id="text">Welcome!, {{ session.username }}</div>
+            <div id="text">Welcome!, {{ full_name }}</div>
             <nav>
                 <a href="{{ url_for('logout') }}" class="button">Logout</a>
             </nav>
@@ -241,18 +241,17 @@
                             </div>
                             <form class="apply-form" action="{{ url_for('admin', job_id=job[0]) }}" method="post" enctype="multipart/form-data">
                                 {{ application_form.hidden_tag() }}
-                                {{ application_form.name(placeholder="Your Name", required=true) }}
-                                {% if application_form.name.errors %}
-                                    <span class="error">{{ application_form.name.errors[0] }}</span>
-                                {% endif %}
+                                
                                 {{ application_form.email(placeholder="Your Email", required=true) }}
                                 {% if application_form.email.errors %}
                                     <span class="error">{{ application_form.email.errors[0] }}</span>
                                 {% endif %}
+                                
                                 {{ application_form.resume(required=true) }}
                                 {% if application_form.resume.errors %}
                                     <span class="error">{{ application_form.resume.errors[0] }}</span>
                                 {% endif %}
+                                
                                 <button type="submit" class="button">Apply</button>
                             </form>
                         </li>
