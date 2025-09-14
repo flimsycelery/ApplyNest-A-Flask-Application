@@ -17,6 +17,13 @@
             </div>
         </nav>
 
+        <!-- Migration Section -->
+        <section class="job-posting" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+            <h2>Database Migration</h2>
+            <p>If you're upgrading from an older version, click the button below to add match scores to existing applications.</p>
+            <a href="{{ url_for('migrate_scores') }}" class="button" style="background-color: #17a2b8;">Migrate Existing Applications</a>
+        </section>
+
         <!-- Add Job Section -->
         <section class="job-posting">
             <h2>Add a New Job Posting</h2>
@@ -49,11 +56,9 @@
                     <td>{{ job[1] }}</td>
                     <td>{{ job[2] }}</td>
                     <td>
-                        <form action="{{ url_for('admin', job_id=job[0]) }}" method="post" style="display:inline-block;">
-                            {{ edit_form.hidden_tag() }}
-                            <button type="submit" class="button">Update</button>
-                        </form>
-                        <a href="{{ url_for('delete_job', job_id=job[0]) }}" class="button">Delete</a>
+                        <a href="{{ url_for('edit_job', job_id=job[0]) }}" class="button" style="background-color: #28a745; margin: 0 5px;">Edit</a>
+                        <a href="{{ url_for('recalculate_scores', job_id=job[0]) }}" class="button" style="background-color: #17a2b8; margin: 0 5px;">Recalculate Scores</a>
+                        <a href="{{ url_for('delete_job', job_id=job[0]) }}" class="button" style="background-color: #dc3545;">Delete</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -64,36 +69,91 @@
         <!-- Job Applications -->
         <section class="job-posting">
             <h2>Job Applications</h2>
-            {% if job_applications %}
-            <table>
-                <tr>
-                    <th>Job Title</th>
-                    <th>Applicant Name</th>
-                    <th>Email</th>
-                    <th>Resume</th>
-                    <th>Status</th>
-                    <th>Update</th>
-                </tr>
+            {% if job_applications and job_applications|length > 0 %}
+            
+            <div style="overflow-x: auto; margin-bottom: 20px;">
+            
+            <!-- Sorting Controls -->
+            <div class="sort-controls" style="margin-bottom: 20px;">
+                <label for="sort-select">Sort by:</label>
+                <select id="sort-select" onchange="sortApplications()">
+                    <option value="match_score" {% if current_sort == 'match_score' %}selected{% endif %}>Match Score</option>
+                    <option value="name" {% if current_sort == 'name' %}selected{% endif %}>Name</option>
+                    <option value="email" {% if current_sort == 'email' %}selected{% endif %}>Email</option>
+                    <option value="job_title" {% if current_sort == 'job_title' %}selected{% endif %}>Job Title</option>
+                    <option value="status" {% if current_sort == 'status' %}selected{% endif %}>Status</option>
+                </select>
+                
+                <label for="order-select">Order:</label>
+                <select id="order-select" onchange="sortApplications()">
+                    <option value="desc" {% if current_order == 'desc' %}selected{% endif %}>High to Low</option>
+                    <option value="asc" {% if current_order == 'asc' %}selected{% endif %}>Low to High</option>
+                </select>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <thead>
+                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;"><a href="?sort=match_score&order={% if current_sort == 'match_score' and current_order == 'desc' %}asc{% else %}desc{% endif %}" style="text-decoration: none; color: #495057;">Match Score</a></th>
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;"><a href="?sort=job_title&order={% if current_sort == 'job_title' and current_order == 'desc' %}asc{% else %}desc{% endif %}" style="text-decoration: none; color: #495057;">Job Title</a></th>
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;"><a href="?sort=name&order={% if current_sort == 'name' and current_order == 'desc' %}asc{% else %}desc{% endif %}" style="text-decoration: none; color: #495057;">Applicant Name</a></th>
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;"><a href="?sort=email&order={% if current_sort == 'email' and current_order == 'desc' %}asc{% else %}desc{% endif %}" style="text-decoration: none; color: #495057;">Email</a></th>
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;">Resume</th>
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;"><a href="?sort=status&order={% if current_sort == 'status' and current_order == 'desc' %}asc{% else %}desc{% endif %}" style="text-decoration: none; color: #495057;">Status</a></th>
+                        <th style="padding: 12px 8px; text-align: left; border: 1px solid #dee2e6;">Update</th>
+                    </tr>
+                </thead>
+                <tbody>
                 {% for application in job_applications %}
-                <tr>
-                    <td>{{ application.job_title }}</td>
-                    <td>{{ application.name }}</td>
-                    <td>{{ application.email }}</td>
-                    <td><a href="{{ url_for('static', filename='resumes/' ~ application.resume) }}" target="_blank">View</a></td>
-                    <td>
-                        <form action="{{ url_for('update_status', application_id=application.id) }}" method="post">
-                            {{ status_form.hidden_tag() }}
-                            {{ status_form.status() }}
-                        </form>
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 12px 8px; border: 1px solid #dee2e6; vertical-align: middle;">
+                        {% if application.match_score >= 70 %}
+                            <span class="match-score" style="display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; background-color: #d4edda; color: #155724;">
+                                {{ "%.1f"|format(application.match_score) }}%
+                            </span>
+                        {% elif application.match_score >= 50 %}
+                            <span class="match-score" style="display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; background-color: #fff3cd; color: #856404;">
+                                {{ "%.1f"|format(application.match_score) }}%
+                            </span>
+                        {% else %}
+                            <span class="match-score" style="display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; background-color: #f8d7da; color: #721c24;">
+                                {{ "%.1f"|format(application.match_score) }}%
+                            </span>
+                        {% endif %}
                     </td>
-                    <td>
-                        <button type="submit" class="button">Update</button>
+                    <td style="padding: 12px 8px; border: 1px solid #dee2e6; vertical-align: middle; max-width: 200px; word-wrap: break-word;">{{ application.job_title }}</td>
+                    <td style="padding: 12px 8px; border: 1px solid #dee2e6; vertical-align: middle;">{{ application.name }}</td>
+                    <td style="padding: 12px 8px; border: 1px solid #dee2e6; vertical-align: middle;">{{ application.email }}</td>
+                    <td style="padding: 12px 8px; border: 1px solid #dee2e6; vertical-align: middle;"><a href="{{ url_for('static', filename='resumes/' ~ application.resume) }}" target="_blank" style="color: #007bff; text-decoration: none;">View Resume</a></td>
+                    <td style="padding: 12px 8px; border: 1px solid #dee2e6; vertical-align: middle;">
+                        <form action="{{ url_for('update_status', application_id=application.id) }}" method="post" style="display: inline;">
+                            {{ status_form.hidden_tag() }}
+                            <select name="status" style="padding: 4px; margin-right: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <option value="Pending" {% if application.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                <option value="Under Review" {% if application.status == 'Under Review' %}selected{% endif %}>Under Review</option>
+                                <option value="Accepted" {% if application.status == 'Accepted' %}selected{% endif %}>Accepted</option>
+                                <option value="Rejected" {% if application.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                            </select>
+                            <button type="submit" class="button" style="padding: 4px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Update</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
+                </tbody>
             </table>
+            </div>
+            {% else %}
+            <p>No job applications found. Applications will appear here once users start applying to your job postings.</p>
             {% endif %}
         </section>
+
+        <script>
+        function sortApplications() {
+            const sortBy = document.getElementById('sort-select').value;
+            const order = document.getElementById('order-select').value;
+            window.location.href = `?sort=${sortBy}&order=${order}`;
+        }
+        </script>
 
 </body>
 </html>

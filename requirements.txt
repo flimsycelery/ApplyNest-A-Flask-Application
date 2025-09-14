@@ -3,3 +3,8 @@ Flask-WTF
 WTForms
 email_validator
 Gunicorn
+PyPDF2
+python-docx
+scikit-learn
+numpy
+pandas

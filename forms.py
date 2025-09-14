@@ -30,7 +30,7 @@ class RegisterForm(FlaskForm):
 class JobApplicationForm(FlaskForm):
     name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=50)])
     email = StringField('Email', validators=[DataRequired(), Email()])
-    resume = FileField('Resume', validators=[
+    resume = FileField('Resume (PDF, DOC, or DOCX)', validators=[
         FileRequired(),
         FileAllowed(['pdf', 'doc', 'docx'], 'Only PDF and Word documents are allowed!')
     ])
