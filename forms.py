@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, PasswordField, TextAreaField, SelectField, BooleanField, SubmitField, RadioField
+from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
 import sqlite3
 
@@ -12,6 +13,7 @@ class LoginForm(FlaskForm):
 
 class RegisterForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=20)])
+    full_name = StringField('Full Name', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     role = RadioField("Role", choices=[("user", "User"), ("admin", "Admin")], validators=[DataRequired()])
@@ -26,9 +28,15 @@ class RegisterForm(FlaskForm):
         if existing_user:
             raise ValidationError('Username already exists. Please choose a different one.')
 
+class ResumeUploadForm(FlaskForm):
+    resume_file = FileField('Upload Resume', validators=[
+        FileRequired(),
+        FileAllowed(['pdf', 'docx'], 'Only PDF or DOCX files are allowed!')
+    ])
+    submit = SubmitField('Upload')
+
 
 class JobApplicationForm(FlaskForm):
-    name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=50)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     resume = FileField('Resume (PDF, DOC, or DOCX)', validators=[
         FileRequired(),

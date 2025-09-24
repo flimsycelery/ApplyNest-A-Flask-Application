@@ -1,9 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_wtf.csrf import CSRFProtect
 import sqlite3
 import os
+from docx import Document
+import fitz 
 from werkzeug.security import generate_password_hash, check_password_hash
-from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm
+from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm, ResumeUploadForm
+from werkzeug.utils import secure_filename
+from nlp_utils import match_resume_to_jobs, update_schema_with_keywords
 from resume_processor import ResumeProcessor
 
 app = Flask(__name__)
@@ -11,6 +15,9 @@ app.secret_key = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('sqlite:///db.sqlite3')
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(24)
+UPLOAD_FOLDER = 'static/resumes'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+update_schema_with_keywords()
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -49,22 +56,27 @@ def create_tables():
                       password TEXT,
                       role TEXT)''')
     
-    # Add migration for existing databases
+    # Lightweight migrations for existing databases (SQLite-compatible)
     try:
-        # Check if match_score column exists
+        # job_applications table columns
         cursor.execute("PRAGMA table_info(job_applications)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'match_score' not in columns:
+        job_app_cols = [column[1] for column in cursor.fetchall()]
+        if 'match_score' not in job_app_cols:
             print("Adding match_score column to existing job_applications table...")
             cursor.execute("ALTER TABLE job_applications ADD COLUMN match_score REAL DEFAULT 0.0")
             print("✓ match_score column added")
-        
-        if 'status' not in columns:
+        if 'status' not in job_app_cols:
             print("Adding status column to existing job_applications table...")
             cursor.execute("ALTER TABLE job_applications ADD COLUMN status TEXT DEFAULT 'Pending'")
             print("✓ status column added")
-            
+
+        # users table columns
+        cursor.execute("PRAGMA table_info(users)")
+        user_cols = [col[1] for col in cursor.fetchall()]
+        if 'full_name' not in user_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
+        if 'resume_path' not in user_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN resume_path TEXT")
     except Exception as e:
         print(f"Migration error (this is normal for new databases): {e}")
     
@@ -164,13 +176,16 @@ def register():
     form = RegisterForm()
     if form.validate_on_submit():
         username = form.username.data
+        full_name = form.full_name.data
         password = form.password.data
-        role = form.role.data  # 'user' or 'admin' from radio button
+        role = form.role.data
 
         conn = connect_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                       (username, generate_password_hash(password), role))
+        cursor.execute("""
+            INSERT INTO users (username, full_name, password, role)
+            VALUES (?, ?, ?, ?)
+        """, (username, full_name, generate_password_hash(password), role))
         conn.commit()
         conn.close()
 
@@ -196,6 +211,7 @@ def login():
         if user and check_password_hash(user[2], password):
             session['user_id'] = user[0]
             session['username'] = user[1]
+            session['full_name'] = user[5]  # index depends on table order; adjust
             session['role'] = user[3]
 
             if role == 'admin':
@@ -213,58 +229,128 @@ def login():
 
 @app.route('/user_dashboard')
 def user_dashboard():
-    if 'user_id' not in session or session['role'] != 'user':
+    user_id = session.get('user_id')
+    if not user_id:
         return redirect(url_for('login'))
 
-    user_id = session['user_id']
     conn = connect_db()
     cursor = conn.cursor()
+
+    # Fetch full_name and resume_path
+    cursor.execute("SELECT full_name, resume_path FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    full_name = row[0] if row else "User"
+    resume_path = row[1] if row else None
+
+    # Load resume text
+    resume_text = ""
+    resume_uploaded = bool(resume_path)
+    if resume_uploaded and os.path.exists(resume_path):
+        try:
+            if resume_path.endswith('.pdf'):
+                import fitz
+                doc = fitz.open(resume_path)
+                for page in doc:
+                    resume_text += page.get_text()
+            elif resume_path.endswith('.docx'):
+                from docx import Document
+                doc = Document(resume_path)
+                for para in doc.paragraphs:
+                    resume_text += para.text + "\n"
+        except Exception as e:
+            print(f"Error reading resume: {e}")
+
+    # Fetch applied jobs
+    cursor.execute('''SELECT jp.title, jp.description, ja.resume, ja.status
+                      FROM job_applications ja
+                      JOIN job_postings jp ON ja.job_id = jp.id
+                      WHERE ja.user_id = ?''', (user_id,))
+    applied_jobs = cursor.fetchall()
+
+    # Fetch all job postings
     cursor.execute("SELECT * FROM job_postings")
     job_postings = cursor.fetchall()
 
-    # Fetch the jobs the user has applied for based on user_id
-    cursor.execute("""
-        SELECT jp.title, jp.description, ja.resume, ja.status
-        FROM job_applications ja
-        JOIN job_postings jp ON ja.job_id = jp.id
-        WHERE ja.user_id = ?
-    """, (session['user_id'],))
-    applied_jobs = cursor.fetchall()
-
     conn.close()
-    form = JobApplicationForm()
-    return render_template('user_dashboard.html', job_postings=job_postings, applied_jobs=applied_jobs, form=form)
+
+    matched_jobs = match_resume_to_jobs(resume_text) if resume_text else []
+    resume_form = ResumeUploadForm()
+    application_form = JobApplicationForm()
+
+    return render_template('user_dashboard.html',
+                           full_name=full_name,
+                           job_postings=job_postings,
+                           applied_jobs=applied_jobs,
+                           matched_jobs=matched_jobs,
+                           resume_uploaded=resume_uploaded,
+                           resume_form=resume_form,
+                           application_form=application_form)
 
 
-@app.route('/apply/<int:job_id>', methods=['POST'])
-def apply(job_id):
+@app.route('/upload_resume', methods=['POST'])
+def upload_resume():
+    form = ResumeUploadForm()
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    if form.validate_on_submit():
+        resume_file = form.resume_file.data
+        filename = secure_filename(resume_file.filename)
+        resume_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        resume_file.save(resume_path)
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET resume_path = ? WHERE username = ?", (resume_path, username))
+        conn.commit()
+        conn.close()
+
+        flash('Resume uploaded successfully!', 'success')
+
+    return redirect(url_for('user_dashboard'))
+
+
+@app.route('/keywords/<int:job_id>')
+def store_keywords(job_id):
+    from nlp_utils import store_keywords_for_job
+    store_keywords_for_job(job_id)
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/<int:job_id>', methods=['POST'])
+def admin(job_id):
     if 'user_id' not in session or session['role'] != 'user':
         return redirect(url_for('login'))
 
     form = JobApplicationForm()
     if form.validate_on_submit():
         user_id = session['user_id']
-        name = form.name.data
         email = form.email.data
         resume = form.resume.data
 
-        # Get file extension and create appropriate filename
-        file_extension = os.path.splitext(resume.filename)[1]
-        resume_filename = f"{name}_{email}{file_extension}"
+        # Fetch full_name from database
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT full_name FROM users WHERE id=?", (user_id,))
+        row = cursor.fetchone()
+        full_name = row[0] if row else "Unknown"
+        
+        # Save resume with safe filename and original extension
+        file_extension = os.path.splitext(resume.filename)[1] or '.pdf'
+        safe_name = "_".join(full_name.split())
+        resume_filename = f"{safe_name}_{email}{file_extension}"
         resume_path = os.path.join('static', 'resumes', resume_filename)
-
-        if not os.path.exists(os.path.join('static', 'resumes')):
-            os.makedirs(os.path.join('static', 'resumes'))
-
+        os.makedirs(os.path.join('static', 'resumes'), exist_ok=True)
         resume.save(resume_path)
 
         # Get job description for match scoring
-        conn = connect_db()
-        cursor = conn.cursor()
         cursor.execute("SELECT description FROM job_postings WHERE id=?", (job_id,))
         job_posting = cursor.fetchone()
         
         if not job_posting:
+            conn.close()
             flash('Job posting not found.', 'error')
             return redirect(url_for('user_dashboard'))
         
@@ -280,7 +366,7 @@ def apply(job_id):
 
         # Insert application with match score
         cursor.execute("INSERT INTO job_applications (job_id, user_id, name, email, resume, status, match_score) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       (job_id, user_id, name, email, resume_filename, 'Pending', match_score))
+                       (job_id, user_id, full_name, email, resume_filename, 'Pending', match_score))
         conn.commit()
         conn.close()
         
@@ -292,7 +378,6 @@ def apply(job_id):
     else:
         flash('Please correct the errors in your application.', 'error')
         return redirect(url_for('user_dashboard'))
-
 
 @app.route('/admin_dashboard')
 def admin_dashboard():
@@ -316,6 +401,8 @@ def admin_dashboard():
                          status_form=status_form,
                          current_sort='match_score',
                          current_order='desc')
+
+
 
 
 @app.route('/view_applications')
