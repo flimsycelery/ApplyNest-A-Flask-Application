@@ -5,3 +5,8 @@ email_validator
 Gunicorn
 keybert
 sentence-transformers
+PyPDF2
+python-docx
+scikit-learn
+numpy
+pandas

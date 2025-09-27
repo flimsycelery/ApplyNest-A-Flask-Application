@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from forms import LoginForm, RegisterForm, JobApplicationForm, JobPostingForm, EditJobForm, ApplicationStatusForm, ResumeUploadForm
 from werkzeug.utils import secure_filename
 from nlp_utils import match_resume_to_jobs, update_schema_with_keywords
+from resume_processor import ResumeProcessor
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -45,6 +46,8 @@ def create_tables():
                       name TEXT,
                       email TEXT,
                       resume TEXT,
+                      status TEXT DEFAULT 'Pending',
+                      match_score REAL DEFAULT 0.0,
                       FOREIGN KEY (job_id) REFERENCES job_postings (id) ON DELETE CASCADE,
                       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -53,18 +56,70 @@ def create_tables():
                       password TEXT,
                       role TEXT)''')
     
-    cursor.execute("PRAGMA table_info(users)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'resume_path' not in columns:
-        cursor.execute("ALTER TABLE users ALTER COLUMN resume_path SET DEFAULT NULL;")
+    # Lightweight migrations for existing databases (SQLite-compatible)
+    try:
+        # job_applications table columns
+        cursor.execute("PRAGMA table_info(job_applications)")
+        job_app_cols = [column[1] for column in cursor.fetchall()]
+        if 'match_score' not in job_app_cols:
+            print("Adding match_score column to existing job_applications table...")
+            cursor.execute("ALTER TABLE job_applications ADD COLUMN match_score REAL DEFAULT 0.0")
+            print("✓ match_score column added")
+        if 'status' not in job_app_cols:
+            print("Adding status column to existing job_applications table...")
+            cursor.execute("ALTER TABLE job_applications ADD COLUMN status TEXT DEFAULT 'Pending'")
+            print("✓ status column added")
 
-    if 'full_name' not in columns:
-        cursor.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
+        # users table columns
+        cursor.execute("PRAGMA table_info(users)")
+        user_cols = [col[1] for col in cursor.fetchall()]
+        if 'full_name' not in user_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
+        if 'resume_path' not in user_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN resume_path TEXT")
+    except Exception as e:
+        print(f"Migration error (this is normal for new databases): {e}")
     
     conn.commit()
     conn.close()
 
 create_tables()
+
+
+def migrate_existing_applications():
+    """Calculate match scores for existing applications that don't have them"""
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        
+        # Find applications without match scores
+        cursor.execute("SELECT ja.id, ja.job_id, ja.resume, jp.description FROM job_applications ja JOIN job_postings jp ON ja.job_id = jp.id WHERE ja.match_score = 0.0 OR ja.match_score IS NULL")
+        applications = cursor.fetchall()
+        
+        if applications:
+            print(f"Found {len(applications)} applications without match scores. Calculating...")
+            processor = ResumeProcessor()
+            updated_count = 0
+            
+            for app_id, job_id, resume_filename, job_description in applications:
+                resume_path = os.path.join('static', 'resumes', resume_filename)
+                if os.path.exists(resume_path):
+                    match_score, status = processor.process_resume(resume_path, job_description)
+                    if status == "Success":
+                        cursor.execute("UPDATE job_applications SET match_score=? WHERE id=?", (match_score, app_id))
+                        updated_count += 1
+                        print(f"Updated application {app_id}: {match_score}% match")
+            
+            conn.commit()
+            print(f"Successfully updated {updated_count} applications with match scores.")
+        
+        conn.close()
+    except Exception as e:
+        print(f"Migration error: {e}")
+
+
+# Run migration for existing applications (commented out to prevent startup errors)
+# migrate_existing_applications()
 
 
 # Predefined admin user
@@ -282,22 +337,43 @@ def admin(job_id):
         row = cursor.fetchone()
         full_name = row[0] if row else "Unknown"
         
-        # Save resume with full_name in filename
+        # Save resume with safe filename and original extension
+        file_extension = os.path.splitext(resume.filename)[1] or '.pdf'
         safe_name = "_".join(full_name.split())
-        resume_filename = f"{safe_name}_{email}.pdf"
+        resume_filename = f"{safe_name}_{email}{file_extension}"
         resume_path = os.path.join('static', 'resumes', resume_filename)
         os.makedirs(os.path.join('static', 'resumes'), exist_ok=True)
         resume.save(resume_path)
 
-        # Insert job application
-        cursor.execute("""
-            INSERT INTO job_applications (job_id, user_id, name, email, resume, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (job_id, user_id, full_name, email, resume_filename, 'Pending'))
+        # Get job description for match scoring
+        cursor.execute("SELECT description FROM job_postings WHERE id=?", (job_id,))
+        job_posting = cursor.fetchone()
+        
+        if not job_posting:
+            conn.close()
+            flash('Job posting not found.', 'error')
+            return redirect(url_for('user_dashboard'))
+        
+        job_description = job_posting[0]
+        
+        # Calculate match score
+        processor = ResumeProcessor()
+        match_score, status = processor.process_resume(resume_path, job_description)
+        
+        if status != "Success":
+            flash(f'Warning: {status}. Application submitted without match score.', 'warning')
+            match_score = 0.0
+
+        # Insert application with match score
+        cursor.execute("INSERT INTO job_applications (job_id, user_id, name, email, resume, status, match_score) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (job_id, user_id, full_name, email, resume_filename, 'Pending', match_score))
         conn.commit()
         conn.close()
-
-        flash('Application submitted successfully!', 'success')
+        
+        if match_score > 0:
+            flash(f'Application submitted successfully! Match score: {match_score}%', 'success')
+        else:
+            flash('Application submitted successfully!', 'success')
         return redirect(url_for('user_dashboard'))
     else:
         flash('Please correct the errors in your application.', 'error')
@@ -317,7 +393,14 @@ def admin_dashboard():
     form = JobPostingForm()
     edit_form = EditJobForm()
     status_form = ApplicationStatusForm()
-    return render_template('admin_dashboard.html', job_postings=job_postings, form=form, edit_form=edit_form, status_form=status_form)
+    return render_template('admin_dashboard.html', 
+                         job_postings=job_postings, 
+                         job_applications=[],  # Empty list when no applications
+                         form=form, 
+                         edit_form=edit_form, 
+                         status_form=status_form,
+                         current_sort='match_score',
+                         current_order='desc')
 
 
 
@@ -328,17 +411,38 @@ def view_applications():
         return redirect(url_for('login'))
 
     admin_id = session['user_id']
+    sort_by = request.args.get('sort', 'match_score')  # Default sort by match score
+    sort_order = request.args.get('order', 'desc')  # Default descending order
+    
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT ja.id, ja.name, ja.email, ja.resume, jp.title ,ja.status
+    # Validate sort parameters
+    valid_sort_fields = ['match_score', 'name', 'email', 'status', 'job_title']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'match_score'
+    
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+
+    # Build ORDER BY clause
+    order_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
+    if sort_by == 'job_title':
+        order_clause = "ORDER BY jp.title " + sort_order.upper()
+
+    cursor.execute(f"""
+        SELECT ja.id, ja.name, ja.email, ja.resume, jp.title, ja.status, ja.match_score
         FROM job_applications ja
         JOIN job_postings jp ON ja.job_id = jp.id
         WHERE jp.admin_id = ?
+        {order_clause}
     """, (admin_id,))
 
     job_applications = cursor.fetchall()
+
+    # Get job postings for the admin (needed for the template)
+    cursor.execute("SELECT * FROM job_postings WHERE admin_id=?", (admin_id,))
+    job_postings = cursor.fetchall()
     conn.close()
 
     applications = [{
@@ -347,11 +451,22 @@ def view_applications():
         'email': row[2],
         'resume': row[3],
         'job_title': row[4],
-        'status':row[5]
+        'status': row[5],
+        'match_score': row[6] if row[6] is not None else 0.0
     } for row in job_applications]
-
+    
+    form = JobPostingForm()
+    edit_form = EditJobForm()
     status_form = ApplicationStatusForm()
-    return render_template('admin_dashboard.html', job_applications=applications, status_form=status_form)
+    
+    return render_template('admin_dashboard.html', 
+                         job_postings=job_postings,
+                         job_applications=applications, 
+                         form=form,
+                         edit_form=edit_form,
+                         status_form=status_form,
+                         current_sort=sort_by,
+                         current_order=sort_order)
 
 @app.route('/update_status/<int:application_id>',methods =['POST'])
 def update_status(application_id):
@@ -404,20 +519,22 @@ def edit_job(job_id):
     if 'user_id' not in session or session['role'] != 'admin':
         return redirect(url_for('login'))
     
+    # Check if the job posting being edited belongs to the currently logged-in admin
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM job_postings WHERE id=? AND admin_id=?", (job_id, session['user_id']))
+    job_posting = cursor.fetchone()
+    conn.close()
+    
+    if not job_posting:
+        flash("You don't have permission to edit this job posting.", 'error')
+        return redirect(url_for('admin_dashboard'))
+    
     form = EditJobForm()
-    if form.validate_on_submit():
+    
+    if request.method == 'POST' and form.validate_on_submit():
         title = form.title.data
         description = form.description.data
-
-        # Check if the job posting being edited belongs to the currently logged-in admin
-        conn = connect_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM job_postings WHERE id=? AND admin_id=?", (job_id, session['user_id']))
-        job_posting = cursor.fetchone()
-        conn.close()
-        if not job_posting:
-            flash("You don't have permission to edit this job posting.", 'error')
-            return redirect(url_for('admin_dashboard'))
 
         conn = connect_db()
         cursor = conn.cursor()
@@ -426,9 +543,66 @@ def edit_job(job_id):
         conn.close()
         flash('Job posting updated successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
-    else:
+    elif request.method == 'POST':
         flash('Please correct the errors in your job posting.', 'error')
+        return render_template('edit_job.html', form=form, job_id=job_id, current_job=job_posting)
+    else:
+        # GET request - show the edit form
+        return render_template('edit_job.html', form=form, job_id=job_id, current_job=job_posting)
+
+
+@app.route('/migrate_scores')
+def migrate_scores():
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('login'))
+    
+    try:
+        migrate_existing_applications()
+        flash('Migration completed successfully! All existing applications now have match scores.', 'success')
+    except Exception as e:
+        flash(f'Migration failed: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/recalculate_scores/<int:job_id>')
+def recalculate_scores(job_id):
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('login'))
+    
+    # Check if the job posting belongs to the currently logged-in admin
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM job_postings WHERE id=? AND admin_id=?", (job_id, session['user_id']))
+    job_posting = cursor.fetchone()
+    
+    if not job_posting:
+        flash("You don't have permission to recalculate scores for this job posting.", 'error')
+        conn.close()
         return redirect(url_for('admin_dashboard'))
+    
+    job_description = job_posting[2]  # description is at index 2
+    
+    # Get all applications for this job
+    cursor.execute("SELECT id, resume FROM job_applications WHERE job_id=?", (job_id,))
+    applications = cursor.fetchall()
+    
+    processor = ResumeProcessor()
+    updated_count = 0
+    
+    for app_id, resume_filename in applications:
+        resume_path = os.path.join('static', 'resumes', resume_filename)
+        if os.path.exists(resume_path):
+            match_score, status = processor.process_resume(resume_path, job_description)
+            if status == "Success":
+                cursor.execute("UPDATE job_applications SET match_score=? WHERE id=?", (match_score, app_id))
+                updated_count += 1
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Successfully recalculated match scores for {updated_count} applications!', 'success')
+    return redirect(url_for('view_applications'))
 
 
 @app.route('/delete_job/<int:job_id>')

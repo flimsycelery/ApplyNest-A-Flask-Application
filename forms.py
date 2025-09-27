@@ -38,7 +38,7 @@ class ResumeUploadForm(FlaskForm):
 
 class JobApplicationForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
-    resume = FileField('Resume', validators=[
+    resume = FileField('Resume (PDF, DOC, or DOCX)', validators=[
         FileRequired(),
         FileAllowed(['pdf', 'doc', 'docx'], 'Only PDF and Word documents are allowed!')
     ])
